@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>HANGSTORM VR</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="topPanel">
+      <div class="titleRow">
+        <div>
+          <h1>HANGSTORM VR</h1>
+          <div class="sub">Two play modes, pull-up bar interaction, resistance-band fantasy, dodge reactions, no build step.</div>
+        </div>
+        <div class="badge">WEBXR / QUEST 3</div>
+      </div>
+      <div class="controls">
+        <button id="skyhookBtn" class="primary">Start Skyhook Assault</button>
+        <button id="reactorBtn" class="secondary">Start Reactor Reach</button>
+        <button id="calibrateBtn">Recalibrate Neutral + Bar</button>
+        <button id="pauseBtn" class="warn" style="display: none;">Pause / End Run</button>
+      </div>
+      <div class="row">
+        <label for="intensityRange">Intensity</label>
+        <input id="intensityRange" type="range" min="0.55" max="1.5" step="0.05" value="0.70" />
+        <span id="intensityValue" class="badge">0.70x</span>
+      </div>
+      <div class="row">
+        <label for="comfortSelect">Comfort</label>
+        <select id="comfortSelect">
+          <option value="light">Light vignette</option>
+          <option value="off">Off</option>
+          <option value="strong">Strong vignette</option>
+        </select>
+      </div>
+      <div class="vrButtonWrap" id="vrButtonWrap"></div>
+      <div class="danger">
+        Use a secure pull-up bar, clear space, and moderate band tension. For barrier lifts, the prototype uses a <b>hang + pull-up pulse</b> because browser VR does not have reliable leg tracking.
+      </div>
+    </div>
+
+    <div id="statusPanel">
+      <div class="sub"><b>Status:</b> <span id="statusText">Idle — open a mode, then follow the big in-VR hint. In VR: press X/A/B/Y or thumbstick to open the VR menu, then squeeze both grips overhead to hang.</span></div>
+      <div>
+        <span class="pill">VR menu: X/A/B/Y or thumbstick</span>
+        <span class="pill">Grip both controllers overhead = hang</span>
+        <span class="pill">Skyhook: punch drones</span>
+        <span class="pill">Reactor: reach and hold nodes</span>
+        <span class="pill">Lean / duck to dodge</span>
+        <span class="pill">Hang + pull-up pulse for yellow barriers</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="k">Score</div><div class="v" id="scoreValue">0</div></div>
+        <div class="metric"><div class="k">Combo</div><div class="v" id="comboValue">0x</div></div>
+        <div class="metric"><div class="k">Flow</div><div class="v" id="flowValue">0%</div></div>
+        <div class="metric"><div class="k">Health</div><div class="v" id="healthValue">100</div></div>
+      </div>
+      <div class="help">
+        <b>Desktop debug:</b> A/D lean, S duck, H hold hang, Space pull pulse, J/L punch, U/O reach, R recalibrate.<br/>
+        <b>Quest setup:</b> Serve this file over HTTPS or localhost, open it in Quest Browser, tap <b>Enter VR</b>, then use the in-VR menu to start, restart, change modes, or adjust speed.
+      </div>
+    </div>
+
+    <div id="centerMessage">
+      <div class="big">READY TO HANGSTORM</div>
+      <div class="small">Start in desktop mode or enter VR on Quest 3. In VR, use the controller menu button to open the floating menu, pick a mode, then follow the giant hint card in front of you.</div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+:root {
+  --bg: #071018;
+  --panel: rgba(8, 14, 24, 0.84);
+  --panel-strong: rgba(10, 18, 30, 0.92);
+  --line: rgba(140, 210, 255, 0.22);
+  --text: #eaf6ff;
+  --muted: #8eb5cf;
+  --accent: #3cf3ff;
+  --accent2: #ff4fd8;
+  --good: #6cff98;
+  --warn: #ffca5a;
+  --bad: #ff667f;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at top, #0d2030 0%, var(--bg) 55%, #02050a 100%);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+canvas { display: block; }
+#app {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+#topPanel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: min(460px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  padding: 16px 16px 14px;
+  pointer-events: auto;
+}
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  font-weight: 900;
+}
+.badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border: 1px solid rgba(60, 243, 255, 0.28);
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(60, 243, 255, 0.08);
+  white-space: nowrap;
+}
+.sub {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+button, select, input[type="range"] {
+  pointer-events: auto;
+}
+button {
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+button:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.28); }
+button.primary {
+  background: linear-gradient(180deg, rgba(60,243,255,0.18), rgba(60,243,255,0.08));
+  border-color: rgba(60,243,255,0.35);
+}
+button.secondary {
+  background: linear-gradient(180deg, rgba(255,79,216,0.16), rgba(255,79,216,0.08));
+  border-color: rgba(255,79,216,0.28);
+}
+button.warn {
+  background: linear-gradient(180deg, rgba(255,202,90,0.18), rgba(255,202,90,0.08));
+  border-color: rgba(255,202,90,0.25);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.row label {
+  min-width: 88px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+select {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+input[type="range"] {
+  flex: 1;
+}
+#statusPanel {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  width: min(360px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  padding: 14px 16px;
+  pointer-events: auto;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.metric {
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.metric .k {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.metric .v {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+.help {
+  margin-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.help b { color: var(--text); }
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  min-width: 260px;
+  max-width: min(760px, calc(100vw - 40px));
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  padding: 12px 18px;
+  text-align: center;
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 200ms ease, transform 200ms ease;
+  pointer-events: none;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+#centerMessage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: min(720px, calc(100vw - 40px));
+  padding: 24px 26px;
+  background: rgba(8, 14, 24, 0.5);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+#centerMessage.hidden { display: none; }
+#centerMessage .big {
+  font-size: clamp(24px, 4vw, 48px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+#centerMessage .small {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.vrButtonWrap :is(button, a) {
+  width: 100%;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 16px !important;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.danger {
+  color: #ffd5db;
+  background: rgba(255,102,127,0.08);
+  border: 1px solid rgba(255,102,127,0.18);
+  padding: 10px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 10px;
+}
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  margin-right: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+@media (max-width: 880px) {
+  #statusPanel {
+    top: auto;
+    bottom: 74px;
+  }
+}
+@media (max-width: 640px) {
+  #topPanel, #statusPanel { width: calc(100vw - 18px); left: 9px; right: 9px; }
+  #statusPanel { top: auto; bottom: 74px; }
+  .controls { grid-template-columns: 1fr; }
+  #centerMessage { width: calc(100vw - 20px); }
+}
