@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>HANGSTORM VR — Single File Prototype</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --panel: rgba(8, 14, 24, 0.84);
+      --panel-strong: rgba(10, 18, 30, 0.92);
+      --line: rgba(140, 210, 255, 0.22);
+      --text: #eaf6ff;
+      --muted: #8eb5cf;
+      --accent: #3cf3ff;
+      --accent2: #ff4fd8;
+      --good: #6cff98;
+      --warn: #ffca5a;
+      --bad: #ff667f;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #0d2030 0%, var(--bg) 55%, #02050a 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    canvas { display: block; }
+    #app {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    #topPanel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: min(460px, calc(100vw - 32px));
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      padding: 16px 16px 14px;
+      pointer-events: auto;
+    }
+    .titleRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0.08em;
+      font-weight: 900;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      border: 1px solid rgba(60, 243, 255, 0.28);
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(60, 243, 255, 0.08);
+      white-space: nowrap;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button, select, input[type="range"] {
+      pointer-events: auto;
+    }
+    button {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.28); }
+    button.primary {
+      background: linear-gradient(180deg, rgba(60,243,255,0.18), rgba(60,243,255,0.08));
+      border-color: rgba(60,243,255,0.35);
+    }
+    button.secondary {
+      background: linear-gradient(180deg, rgba(255,79,216,0.16), rgba(255,79,216,0.08));
+      border-color: rgba(255,79,216,0.28);
+    }
+    button.warn {
+      background: linear-gradient(180deg, rgba(255,202,90,0.18), rgba(255,202,90,0.08));
+      border-color: rgba(255,202,90,0.25);
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .row label {
+      min-width: 88px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    select {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    input[type="range"] {
+      flex: 1;
+    }
+    #statusPanel {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      width: min(360px, calc(100vw - 32px));
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      padding: 14px 16px;
+      pointer-events: auto;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .metric {
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .metric .k {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .metric .v {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+    }
+    .help {
+      margin-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .help b { color: var(--text); }
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      min-width: 260px;
+      max-width: min(760px, calc(100vw - 40px));
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      padding: 12px 18px;
+      text-align: center;
+      color: var(--text);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      transition: opacity 200ms ease, transform 200ms ease;
+      pointer-events: none;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+    #centerMessage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      width: min(720px, calc(100vw - 40px));
+      padding: 24px 26px;
+      background: rgba(8, 14, 24, 0.5);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+      pointer-events: none;
+    }
+    #centerMessage.hidden { display: none; }
+    #centerMessage .big {
+      font-size: clamp(24px, 4vw, 48px);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+    #centerMessage .small {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .vrButtonWrap :is(button, a) {
+      width: 100%;
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 16px !important;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .danger {
+      color: #ffd5db;
+      background: rgba(255,102,127,0.08);
+      border: 1px solid rgba(255,102,127,0.18);
+      padding: 10px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      margin-right: 6px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    @media (max-width: 880px) {
+      #statusPanel {
+        top: auto;
+        bottom: 74px;
+      }
+    }
+    @media (max-width: 640px) {
+      #topPanel, #statusPanel { width: calc(100vw - 18px); left: 9px; right: 9px; }
+      #statusPanel { top: auto; bottom: 74px; }
+      .controls { grid-template-columns: 1fr; }
+      #centerMessage { width: calc(100vw - 20px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="topPanel">
+      <div class="titleRow">
+        <div>
+          <h1>HANGSTORM VR</h1>
+          <div class="sub">Single-file Quest 3 WebXR prototype. Two play modes, pull-up bar interaction, resistance-band fantasy, dodge reactions, no build step.</div>
+        </div>
+        <div class="badge">WEBXR / QUEST 3</div>
+      </div>
+      <div class="controls">
+        <button id="skyhookBtn" class="primary">Start Skyhook Assault</button>
+        <button id="reactorBtn" class="secondary">Start Reactor Reach</button>
+        <button id="calibrateBtn">Recalibrate Neutral + Bar</button>
+        <button id="pauseBtn" class="warn">Pause / End Run</button>
+      </div>
+      <div class="row">
+        <label for="intensityRange">Intensity</label>
+        <input id="intensityRange" type="range" min="0.8" max="1.5" step="0.05" value="1.0" />
+        <span id="intensityValue" class="badge">1.00x</span>
+      </div>
+      <div class="row">
+        <label for="comfortSelect">Comfort</label>
+        <select id="comfortSelect">
+          <option value="light">Light vignette</option>
+          <option value="off">Off</option>
+          <option value="strong">Strong vignette</option>
+        </select>
+      </div>
+      <div class="vrButtonWrap" id="vrButtonWrap"></div>
+      <div class="danger">
+        This is a prototype. Use a secure pull-up bar, clear space, and moderate band tension. For barrier lifts, the prototype uses a <b>hang + pull-up pulse</b> because browser VR does not have reliable leg tracking.
+      </div>
+    </div>
+
+    <div id="statusPanel">
+      <div class="sub"><b>Status:</b> <span id="statusText">Idle — calibrate and start a mode. In VR: squeeze both grip buttons overhead to latch onto the virtual bar.</span></div>
+      <div>
+        <span class="pill">Grip both controllers overhead = hang</span>
+        <span class="pill">Punch fast through drones</span>
+        <span class="pill">Reach and hold energy nodes</span>
+        <span class="pill">Lean / duck to dodge</span>
+        <span class="pill">Pull-up pulse while hanging to clear barriers</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="k">Score</div><div class="v" id="scoreValue">0</div></div>
+        <div class="metric"><div class="k">Combo</div><div class="v" id="comboValue">0x</div></div>
+        <div class="metric"><div class="k">Flow</div><div class="v" id="flowValue">0%</div></div>
+        <div class="metric"><div class="k">Health</div><div class="v" id="healthValue">100</div></div>
+      </div>
+      <div class="help">
+        <b>Desktop debug:</b> A/D lean, S duck, H hold hang, Space pull pulse, J/L punch, U/O reach, R recalibrate.<br/>
+        <b>Quest setup:</b> Serve this file over HTTPS or localhost, open it in Quest Browser, tap <b>Enter VR</b>, then recalibrate under your bar.
+      </div>
+    </div>
+
+    <div id="centerMessage">
+      <div class="big">READY TO HANGSTORM</div>
+      <div class="small">Start in desktop mode or enter VR on Quest 3. The prototype is built as a single HTML file with Three.js + WebXR modules from CDN.</div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+    import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/webxr/VRButton.js';
+
+    const app = {
+      topPanel: document.getElementById('topPanel'),
+      statusText: document.getElementById('statusText'),
+      scoreValue: document.getElementById('scoreValue'),
+      comboValue: document.getElementById('comboValue'),
+      flowValue: document.getElementById('flowValue'),
+      healthValue: document.getElementById('healthValue'),
+      centerMessage: document.getElementById('centerMessage'),
+      toast: document.getElementById('toast'),
+      skyhookBtn: document.getElementById('skyhookBtn'),
+      reactorBtn: document.getElementById('reactorBtn'),
+      calibrateBtn: document.getElementById('calibrateBtn'),
+      pauseBtn: document.getElementById('pauseBtn'),
+      intensityRange: document.getElementById('intensityRange'),
+      intensityValue: document.getElementById('intensityValue'),
+      comfortSelect: document.getElementById('comfortSelect'),
+      vrButtonWrap: document.getElementById('vrButtonWrap'),
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06111b);
+    scene.fog = new THREE.Fog(0x06111b, 8, 48);
+
+    const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 120);
+    camera.position.set(0, 1.7, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    app.vrButtonWrap.appendChild(VRButton.createButton(renderer));
+
+    const tempVecA = new THREE.Vector3();
+    const tempVecB = new THREE.Vector3();
+    const tempVecC = new THREE.Vector3();
+    const tempQuat = new THREE.Quaternion();
+    const tempEuler = new THREE.Euler();
+    const clock = new THREE.Clock();
+    const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const smoothstep = (x) => x * x * (3 - 2 * x);
+
+    const palette = {
+      cyan: 0x3cf3ff,
+      magenta: 0xff4fd8,
+      green: 0x6cff98,
+      orange: 0xffca5a,
+      red: 0xff667f,
+      blue: 0x67a9ff,
+      dark: 0x06111b,
+      white: 0xeaf6ff,
+    };
+
+    const game = {
+      playing: false,
+      mode: null,
+      time: 0,
+      duration: 90,
+      score: 0,
+      combo: 0,
+      flow: 0,
+      health: 100,
+      overdrive: 0,
+      overdriveCharge: 0,
+      events: [],
+      nextEventIndex: 0,
+      entities: [],
+      fx: [],
+      lastBeatPulse: 0,
+      beatTime: 0,
+      beatInterval: 0.5,
+      currentHint: 'Calibrate under your bar',
+      recentPull: 0,
+      hitFlash: 0,
+      failFlash: 0,
+      intensity: 1.0,
+      comfort: 'light',
+      spawnLead: 2.6,
+      desktopDebug: true,
+    };
+
+    const calibration = {
+      neutralHead: new THREE.Vector3(0, 1.7, 0),
+      barHeight: 2.05,
+      leanThreshold: 0.20,
+      duckThreshold: 0.18,
+      pullThreshold: 0.09,
+    };
+
+    const player = {
+      head: new THREE.Vector3(0, 1.7, 0),
+      prevHead: new THREE.Vector3(0, 1.7, 0),
+      headVel: new THREE.Vector3(),
+      leftHand: new THREE.Vector3(-0.25, 1.35, -0.30),
+      rightHand: new THREE.Vector3(0.25, 1.35, -0.30),
+      prevLeftHand: new THREE.Vector3(-0.25, 1.35, -0.30),
+      prevRightHand: new THREE.Vector3(0.25, 1.35, -0.30),
+      leftVel: new THREE.Vector3(),
+      rightVel: new THREE.Vector3(),
+      leftGrip: false,
+      rightGrip: false,
+      hanging: false,
+      duckAmount: 0,
+      leanX: 0,
+      pullAmount: 0,
+      leftReach: 0,
+      rightReach: 0,
+      leftPunching: false,
+      rightPunching: false,
+      forward: new THREE.Vector3(0, 0, -1),
+    };
+
+    const debug = {
+      keys: new Set(),
+      hang: false,
+      leftPunchTimer: 0,
+      rightPunchTimer: 0,
+      leftReachTimer: 0,
+      rightReachTimer: 0,
+      headOffsetX: 0,
+      headOffsetY: 0,
+      pullPulseTimer: 0,
+    };
+
+    const world = new THREE.Group();
+    scene.add(world);
+
+    const ambient = new THREE.HemisphereLight(0x8ad8ff, 0x08101c, 1.55);
+    scene.add(ambient);
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(1.5, 3.5, 2.0);
+    scene.add(key);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(60, 90, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x08111d, roughness: 0.9, metalness: 0.0 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.02;
+    floor.position.z = -18;
+    world.add(floor);
+
+    const grid = new THREE.GridHelper(60, 60, 0x103047, 0x0b2030);
+    grid.position.y = 0.0;
+    grid.position.z = -18;
+    world.add(grid);
+
+    const sideWalls = new THREE.Group();
+    world.add(sideWalls);
+    const wallMat = new THREE.MeshBasicMaterial({ color: 0x0c2436, transparent: true, opacity: 0.46, wireframe: true });
+    for (const side of [-1, 1]) {
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(8, 12, 12, 18), wallMat.clone());
+      wall.position.set(side * 5.5, 3.0, -18);
+      wall.rotation.y = -side * Math.PI / 2.6;
+      sideWalls.add(wall);
+    }
+
+    const strips = [];
+    const stripGeom = new THREE.BoxGeometry(0.08, 0.02, 1.8);
+    for (let lane = -2; lane <= 2; lane++) {
+      for (let i = 0; i < 18; i++) {
+        const strip = new THREE.Mesh(
+          stripGeom,
+          new THREE.MeshBasicMaterial({ color: lane === 0 ? 0x1fe8ff : 0x142c3e, transparent: true, opacity: lane === 0 ? 0.25 : 0.14 })
+        );
+        strip.position.set(lane * 0.8, 0.01, -i * 3);
+        strips.push(strip);
+        world.add(strip);
+      }
+    }
+
+    const starCount = 650;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3 + 0] = rand(-16, 16);
+      starPositions[i * 3 + 1] = rand(0.2, 8.5);
+      starPositions[i * 3 + 2] = rand(-50, 4);
+    }
+    const starsGeom = new THREE.BufferGeometry();
+    starsGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const stars = new THREE.Points(starsGeom, new THREE.PointsMaterial({ color: 0x89dfff, size: 0.06, transparent: true, opacity: 0.75, sizeAttenuation: true }));
+    world.add(stars);
+
+    const vignetteMesh = new THREE.Mesh(
+      new THREE.RingGeometry(0.46, 1.8, 48, 8),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false })
+    );
+    vignetteMesh.renderOrder = 999;
+    scene.add(vignetteMesh);
+
+    const playerViz = new THREE.Group();
+    world.add(playerViz);
+    const barMaterial = new THREE.MeshStandardMaterial({ color: 0x3cf3ff, emissive: 0x184a52, metalness: 0.7, roughness: 0.25 });
+    const barMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.72, 16), barMaterial);
+    barMesh.rotation.z = Math.PI / 2;
+    playerViz.add(barMesh);
+
+    const barGlow = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.012, 8, 48), new THREE.MeshBasicMaterial({ color: 0x3cf3ff, transparent: true, opacity: 0.22 }));
+    barGlow.rotation.x = Math.PI / 2;
+    playerViz.add(barGlow);
+
+    const anchorLeft = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), new THREE.MeshBasicMaterial({ color: palette.magenta }));
+    const anchorRight = anchorLeft.clone();
+    playerViz.add(anchorLeft, anchorRight);
+
+    function makeBandLine(color) {
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 });
+      const line = new THREE.Line(geom, mat);
+      line.frustumCulled = false;
+      scene.add(line);
+      return line;
+    }
+    const leftBand = makeBandLine(0xff4fd8);
+    const rightBand = makeBandLine(0x3cf3ff);
+
+    const leftHandViz = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), new THREE.MeshStandardMaterial({ color: 0xff4fd8, emissive: 0x551233, metalness: 0.4, roughness: 0.3 }));
+    const rightHandViz = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), new THREE.MeshStandardMaterial({ color: 0x3cf3ff, emissive: 0x113b48, metalness: 0.4, roughness: 0.3 }));
+    scene.add(leftHandViz, rightHandViz);
+
+    const headMarker = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 }));
+    scene.add(headMarker);
+
+    function makeLabelCanvas(w = 1024, h = 256) {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.minFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      const aspect = w / h;
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(aspect * 0.9, 0.9),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+      );
+      mesh.renderOrder = 998;
+      return { canvas, ctx, tex, mesh };
+    }
+
+    const hudMain = makeLabelCanvas(1024, 320);
+    const hudHint = makeLabelCanvas(1024, 220);
+    scene.add(hudMain.mesh, hudHint.mesh);
+
+    function drawLabel(label, lines, opts = {}) {
+      const { ctx, canvas, tex } = label;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const bg = opts.bg ?? 'rgba(6, 10, 18, 0.66)';
+      const stroke = opts.stroke ?? 'rgba(60, 243, 255, 0.28)';
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 4;
+      roundRect(ctx, 8, 8, canvas.width - 16, canvas.height - 16, 32, true, true);
+      const titleSize = opts.titleSize ?? 86;
+      const bodySize = opts.bodySize ?? 48;
+      ctx.fillStyle = opts.titleColor ?? '#eaf6ff';
+      ctx.font = `900 ${titleSize}px Inter, system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+      const first = Array.isArray(lines) ? lines[0] ?? '' : String(lines);
+      ctx.fillText(first, 44, 34);
+      ctx.fillStyle = opts.bodyColor ?? '#9ac1d9';
+      ctx.font = `700 ${bodySize}px Inter, system-ui, sans-serif`;
+      const arr = Array.isArray(lines) ? lines.slice(1) : [];
+      let y = 34 + titleSize + 14;
+      for (const line of arr) {
+        ctx.fillText(line, 44, y);
+        y += bodySize + 12;
+      }
+      tex.needsUpdate = true;
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    const audio = {
+      ctx: null,
+      master: null,
+      ready: false,
+      lastHitAt: 0,
+    };
+
+    function initAudio() {
+      if (audio.ready) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audio.ctx = new Ctx();
+      audio.master = audio.ctx.createGain();
+      audio.master.gain.value = 0.10;
+      audio.master.connect(audio.ctx.destination);
+      audio.ready = true;
+    }
+
+    async function resumeAudio() {
+      if (!audio.ready) initAudio();
+      if (audio.ctx && audio.ctx.state !== 'running') {
+        try { await audio.ctx.resume(); } catch (_) {}
+      }
+    }
+
+    function tone(freq = 440, duration = 0.08, type = 'sine', volume = 0.2, attack = 0.005) {
+      if (!audio.ready || !audio.ctx || audio.ctx.state !== 'running') return;
+      const ctx = audio.ctx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 2200;
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audio.master);
+      osc.start();
+      osc.stop(ctx.currentTime + duration + 0.02);
+    }
+
+    function noiseBurst(duration = 0.09, volume = 0.11) {
+      if (!audio.ready || !audio.ctx || audio.ctx.state !== 'running') return;
+      const ctx = audio.ctx;
+      const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.22));
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 900;
+      filter.Q.value = 1.4;
+      const gain = ctx.createGain();
+      gain.gain.value = volume;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(audio.master);
+      source.start();
+    }
+
+    function hapticPulse(intensity = 0.35, durationMs = 40, handedness = 'both') {
+      const session = renderer.xr.getSession();
+      if (!session) return;
+      for (const inputSource of session.inputSources) {
+        if (!inputSource.gamepad || !inputSource.gamepad.hapticActuators?.length) continue;
+        if (handedness !== 'both' && inputSource.handedness !== handedness) continue;
+        try { inputSource.gamepad.hapticActuators[0].pulse(intensity, durationMs); } catch (_) {}
+      }
+    }
+
+    const MODE_DEFS = {
+      skyhook: {
+        name: 'Skyhook Assault',
+        bpm: 118,
+        bandMode: 'back',
+        patterns: [
+          [{ d: 0, a: 'pL' }, { d: 1, a: 'pR' }, { d: 2, a: 'duck' }, { d: 3, a: 'barrier' }],
+          [{ d: 0, a: 'pL' }, { d: 0.5, a: 'pR' }, { d: 1.5, a: 'leanL' }, { d: 2.5, a: 'pC' }, { d: 3.5, a: 'barrier' }],
+          [{ d: 0, a: 'pR' }, { d: 1, a: 'pL' }, { d: 2, a: 'leanR' }, { d: 3, a: 'duck' }],
+          [{ d: 0, a: 'pL' }, { d: 0.5, a: 'pR' }, { d: 1.0, a: 'pL' }, { d: 2.0, a: 'barrier' }, { d: 3.0, a: 'leanL' }],
+          [{ d: 0, a: 'pR' }, { d: 0.5, a: 'pL' }, { d: 1.5, a: 'duck' }, { d: 2.5, a: 'barrier' }, { d: 3.0, a: 'pC' }],
+        ],
+        hint: 'Punch drones, dodge hazards, hang and pull to clear barriers.',
+      },
+      reactor: {
+        name: 'Reactor Reach',
+        bpm: 110,
+        bandMode: 'front',
+        patterns: [
+          [{ d: 0, a: 'rL' }, { d: 1, a: 'rR' }, { d: 2, a: 'duck' }, { d: 3, a: 'barrier' }],
+          [{ d: 0, a: 'rBoth' }, { d: 1.5, a: 'leanL' }, { d: 2.0, a: 'rL' }, { d: 3.0, a: 'rR' }],
+          [{ d: 0, a: 'rR' }, { d: 1.0, a: 'rL' }, { d: 2.0, a: 'barrier' }, { d: 3.0, a: 'leanR' }],
+          [{ d: 0, a: 'rL' }, { d: 0.75, a: 'rR' }, { d: 2.0, a: 'duck' }, { d: 3.0, a: 'rBoth' }],
+          [{ d: 0, a: 'rBoth' }, { d: 1.5, a: 'barrier' }, { d: 2.5, a: 'leanL' }, { d: 3.25, a: 'duck' }],
+        ],
+        hint: 'Fight the front-band pull, hold energy nodes, dodge debris, use the bar to vault danger.',
+      },
+    };
+
+    function generateEvents(modeKey, duration = 90) {
+      const def = MODE_DEFS[modeKey];
+      const beat = 60 / def.bpm;
+      const measureBeats = 4;
+      let cursorBeats = 3;
+      const events = [];
+      while (cursorBeats * beat < duration) {
+        const pattern = def.patterns[Math.floor(Math.random() * def.patterns.length)];
+        for (const step of pattern) {
+          const time = (cursorBeats + step.d) * beat;
+          if (time < duration - 1.5) events.push({ time, action: step.a });
+        }
+        cursorBeats += measureBeats;
+        if (Math.random() < 0.35) cursorBeats += 0.5;
+      }
+      events.sort((a, b) => a.time - b.time);
+      return events;
+    }
+
+    function makeGlowMaterial(color, opacity = 0.95) {
+      return new THREE.MeshBasicMaterial({ color, transparent: true, opacity });
+    }
+
+    function spawnEntity(action) {
+      const z = -game.spawnLead * (7.8 * game.intensity);
+      switch (action) {
+        case 'pL': return spawnPunchTarget(-1, z);
+        case 'pR': return spawnPunchTarget(1, z);
+        case 'pC': return spawnPunchTarget(0, z);
+        case 'rL': return spawnReachNode(-1, z);
+        case 'rR': return spawnReachNode(1, z);
+        case 'rBoth': return spawnReachNode(0, z, true);
+        case 'duck': return spawnDuckHazard(z);
+        case 'leanL': return spawnLeanHazard(-1, z);
+        case 'leanR': return spawnLeanHazard(1, z);
+        case 'barrier': return spawnBarrier(z);
+        default: return null;
+      }
+    }
+
+    function spawnPunchTarget(side, z) {
+      const group = new THREE.Group();
+      const x = side === 0 ? 0 : side * 0.75;
+      const y = rand(1.18, 1.58);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 18), new THREE.MeshStandardMaterial({
+        color: side < 0 ? 0xff4fd8 : side > 0 ? 0x3cf3ff : 0xffca5a,
+        emissive: side < 0 ? 0x4c153d : side > 0 ? 0x154552 : 0x554117,
+        metalness: 0.25,
+        roughness: 0.3,
+      }));
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.018, 10, 36), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.42 }));
+      ring.rotation.x = Math.PI / 2;
+      group.add(body, ring);
+      group.position.set(x, y, z);
+      world.add(group);
+      const entity = {
+        kind: 'punch',
+        side,
+        group,
+        body,
+        ring,
+        hold: 0,
+        hit: false,
+        speed: 7.8 * game.intensity,
+        radius: 0.26,
+        baseY: y,
+      };
+      game.entities.push(entity);
+      return entity;
+    }
+
+    function spawnReachNode(side, z, both = false) {
+      const group = new THREE.Group();
+      const nodes = [];
+      const makeNode = (x, y, color) => {
+        const node = new THREE.Group();
+        const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, metalness: 0.2, roughness: 0.2 }));
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.016, 10, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5 }));
+        halo.rotation.x = Math.PI / 2;
+        node.add(core, halo);
+        node.position.set(x, y, 0);
+        group.add(node);
+        return { node, core, halo, hold: 0, hit: false };
+      };
+      if (both) {
+        nodes.push(makeNode(-0.62, 1.48, 0xff4fd8));
+        nodes.push(makeNode(0.62, 1.48, 0x3cf3ff));
+      } else {
+        const x = side < 0 ? -0.78 : 0.78;
+        nodes.push(makeNode(x, rand(1.26, 1.65), side < 0 ? 0xff4fd8 : 0x3cf3ff));
+      }
+      group.position.set(0, 0, z);
+      world.add(group);
+      const entity = {
+        kind: 'reach',
+        side,
+        both,
+        group,
+        nodes,
+        speed: 7.0 * game.intensity,
+        radius: 0.28,
+      };
+      game.entities.push(entity);
+      return entity;
+    }
+
+    function spawnDuckHazard(z) {
+      const group = new THREE.Group();
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.16, 0.18), new THREE.MeshBasicMaterial({ color: 0xff667f, transparent: true, opacity: 0.88 }));
+      const glow = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.04, 0.24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 }));
+      glow.position.y = 0;
+      group.add(beam, glow);
+      group.position.set(0, clamp(calibration.neutralHead.y + 0.02, 1.45, 1.78), z);
+      world.add(group);
+      const entity = { kind: 'hazard', subtype: 'duck', group, speed: 8.2 * game.intensity, resolved: false };
+      game.entities.push(entity);
+      return entity;
+    }
+
+    function spawnLeanHazard(requiredSide, z) {
+      const group = new THREE.Group();
+      const gapX = requiredSide < 0 ? -0.95 : 0.95;
+      const blocker = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.8, 0.22), new THREE.MeshStandardMaterial({ color: 0x67a9ff, emissive: 0x113766, emissiveIntensity: 0.5, transparent: true, opacity: 0.88 }));
+      blocker.position.x = -gapX * 0.7;
+      const warning = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.03, 10, 48), new THREE.MeshBasicMaterial({ color: requiredSide < 0 ? 0xff4fd8 : 0x3cf3ff, transparent: true, opacity: 0.7 }));
+      warning.position.set(gapX, 1.3, 0);
+      warning.rotation.y = Math.PI / 2;
+      group.add(blocker, warning);
+      group.position.set(0, 1.3, z);
+      world.add(group);
+      const entity = { kind: 'hazard', subtype: requiredSide < 0 ? 'leanL' : 'leanR', group, speed: 8.2 * game.intensity, resolved: false };
+      game.entities.push(entity);
+      return entity;
+    }
+
+    function spawnBarrier(z) {
+      const group = new THREE.Group();
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.6, 0.25), new THREE.MeshBasicMaterial({ color: 0xffca5a, transparent: true, opacity: 0.18 }));
+      wall.position.y = 1.0;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 10, 48), new THREE.MeshBasicMaterial({ color: 0xffca5a, transparent: true, opacity: 0.8 }));
+      ring.position.y = 1.65;
+      ring.rotation.x = Math.PI / 2;
+      const edgeTop = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.06, 0.22), new THREE.MeshBasicMaterial({ color: 0xffca5a, transparent: true, opacity: 0.8 }));
+      edgeTop.position.y = 1.78;
+      group.add(wall, ring, edgeTop);
+      group.position.set(0, 0, z);
+      world.add(group);
+      const entity = { kind: 'hazard', subtype: 'barrier', group, speed: 8.5 * game.intensity, resolved: false };
+      game.entities.push(entity);
+      return entity;
+    }
+
+    function spawnBurst(position, color = palette.cyan, count = 10) {
+      const group = new THREE.Group();
+      const pieces = [];
+      const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
+      for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(rand(0.02, 0.06), rand(0.02, 0.06), rand(0.02, 0.06)), material.clone());
+        mesh.position.copy(position);
+        mesh.userData.vel = new THREE.Vector3(rand(-1.4, 1.4), rand(-0.3, 1.5), rand(-0.8, 1.2));
+        mesh.userData.spin = new THREE.Vector3(rand(-4, 4), rand(-4, 4), rand(-4, 4));
+        group.add(mesh);
+        pieces.push(mesh);
+      }
+      world.add(group);
+      game.fx.push({ kind: 'burst', group, pieces, ttl: 0.55 });
+    }
+
+    function spawnWave(position, color = palette.white, scale = 0.4) {
+      const mesh = new THREE.Mesh(new THREE.RingGeometry(scale, scale + 0.035, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+      mesh.position.copy(position);
+      mesh.rotation.x = Math.PI / 2;
+      world.add(mesh);
+      game.fx.push({ kind: 'wave', mesh, ttl: 0.42, maxScale: 2.2 });
+    }
+
+    function removeEntity(entity) {
+      if (!entity) return;
+      if (entity.group && entity.group.parent) entity.group.parent.remove(entity.group);
+      const idx = game.entities.indexOf(entity);
+      if (idx >= 0) game.entities.splice(idx, 1);
+    }
+
+    function showToast(message, duration = 1800) {
+      app.toast.textContent = message;
+      app.toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => app.toast.classList.remove('show'), duration);
+    }
+
+    function setStatus(message) {
+      app.statusText.textContent = message;
+    }
+
+    function updateUI() {
+      app.scoreValue.textContent = Math.floor(game.score).toLocaleString();
+      app.comboValue.textContent = `${Math.max(0, game.combo)}x`;
+      app.flowValue.textContent = `${Math.round(clamp(game.flow, 0, 1) * 100)}%`;
+      app.healthValue.textContent = `${Math.round(clamp(game.health, 0, 100))}`;
+      app.intensityValue.textContent = `${game.intensity.toFixed(2)}x`;
+      app.centerMessage.classList.toggle('hidden', game.playing);
+    }
+
+    function scoreSuccess(points, position, color, handedness = 'both', message = null) {
+      const mult = game.overdrive > 0 ? 2.0 : 1.0;
+      game.score += points * mult + game.combo * 8;
+      game.combo += 1;
+      game.flow = clamp(game.flow + 0.05, 0, 1);
+      game.overdriveCharge = clamp(game.overdriveCharge + 0.1, 0, 1.1);
+      game.hitFlash = 0.18;
+      spawnBurst(position, color, 12);
+      spawnWave(position, color, 0.2 + Math.min(game.combo * 0.01, 0.3));
+      tone(220 + Math.min(game.combo * 20, 450), 0.08, 'triangle', 0.18);
+      tone(550 + Math.min(game.combo * 16, 500), 0.12, 'sine', 0.08);
+      noiseBurst(0.05, 0.04);
+      hapticPulse(0.45, 28, handedness);
+      if (message) game.currentHint = message;
+      if (game.overdriveCharge >= 1 && game.overdrive <= 0) {
+        game.overdrive = 6.5;
+        game.overdriveCharge = 0;
+        showToast('OVERDRIVE!');
+        tone(660, 0.12, 'sawtooth', 0.16);
+        tone(880, 0.20, 'triangle', 0.12);
+      }
+      updateUI();
+    }
+
+    function scoreFail(position, message = 'Missed!') {
+      game.combo = 0;
+      game.flow = clamp(game.flow - 0.15, 0, 1);
+      game.health = clamp(game.health - 10, 0, 100);
+      game.failFlash = 0.28;
+      spawnBurst(position, palette.red, 7);
+      tone(130, 0.16, 'sawtooth', 0.12);
+      noiseBurst(0.07, 0.06);
+      hapticPulse(0.65, 55, 'both');
+      game.currentHint = message;
+      updateUI();
+      if (game.health <= 0) endRun('Run failed — take a breath and reset.');
+    }
+
+    function getShoulderPosition(side) {
+      return tempVecA.set(
+        calibration.neutralHead.x + side * 0.22,
+        calibration.neutralHead.y - 0.18,
+        calibration.neutralHead.z - 0.08
+      );
+    }
+
+    function currentBandAnchors() {
+      const mode = game.mode ? MODE_DEFS[game.mode] : MODE_DEFS.skyhook;
+      const z = mode.bandMode === 'back' ? 0.72 : -1.08;
+      return {
+        left: new THREE.Vector3(calibration.neutralHead.x - 0.32, calibration.neutralHead.y - 0.10, calibration.neutralHead.z + z),
+        right: new THREE.Vector3(calibration.neutralHead.x + 0.32, calibration.neutralHead.y - 0.10, calibration.neutralHead.z + z),
+      };
+    }
+
+    function updateBandLines() {
+      const anchors = currentBandAnchors();
+      anchorLeft.position.copy(anchors.left);
+      anchorRight.position.copy(anchors.right);
+      const positionsLeft = leftBand.geometry.attributes.position.array;
+      positionsLeft[0] = anchors.left.x; positionsLeft[1] = anchors.left.y; positionsLeft[2] = anchors.left.z;
+      positionsLeft[3] = player.leftHand.x; positionsLeft[4] = player.leftHand.y; positionsLeft[5] = player.leftHand.z;
+      leftBand.geometry.attributes.position.needsUpdate = true;
+      const positionsRight = rightBand.geometry.attributes.position.array;
+      positionsRight[0] = anchors.right.x; positionsRight[1] = anchors.right.y; positionsRight[2] = anchors.right.z;
+      positionsRight[3] = player.rightHand.x; positionsRight[4] = player.rightHand.y; positionsRight[5] = player.rightHand.z;
+      rightBand.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function recalibrate() {
+      calibration.neutralHead.copy(player.head);
+      calibration.barHeight = Math.max(player.head.y + 0.34, 1.95);
+      if (renderer.xr.isPresenting) {
+        setStatus('Recalibrated in VR. Stand directly under the real bar.');
+        showToast('Recalibrated for VR');
+      } else {
+        setStatus('Recalibrated for desktop / preview.');
+        showToast('Recalibrated');
+      }
+      updatePlayerRig();
+    }
+
+    function updatePlayerRig() {
+      barMesh.position.set(calibration.neutralHead.x, calibration.barHeight, calibration.neutralHead.z - 0.28);
+      barGlow.position.copy(barMesh.position);
+      barGlow.scale.setScalar(player.hanging ? 1.25 : 1.0 + Math.sin(game.time * 2.5) * 0.03);
+      updateBandLines();
+    }
+
+    function startRun(modeKey) {
+      resumeAudio();
+      game.mode = modeKey;
+      game.playing = true;
+      game.time = 0;
+      game.score = 0;
+      game.combo = 0;
+      game.flow = 0;
+      game.health = 100;
+      game.overdrive = 0;
+      game.overdriveCharge = 0;
+      game.recentPull = 0;
+      game.hitFlash = 0;
+      game.failFlash = 0;
+      game.currentHint = MODE_DEFS[modeKey].hint;
+      game.beatInterval = 60 / MODE_DEFS[modeKey].bpm;
+      game.events = generateEvents(modeKey, game.duration);
+      game.nextEventIndex = 0;
+      for (const entity of [...game.entities]) removeEntity(entity);
+      for (const f of [...game.fx]) {
+        if (f.group?.parent) f.group.parent.remove(f.group);
+        if (f.mesh?.parent) f.mesh.parent.remove(f.mesh);
+      }
+      game.fx.length = 0;
+      updateUI();
+      app.centerMessage.classList.add('hidden');
+      setStatus(`Running ${MODE_DEFS[modeKey].name}. ${MODE_DEFS[modeKey].hint}`);
+      showToast(`${MODE_DEFS[modeKey].name} started`);
+      tone(300, 0.12, 'triangle', 0.14);
+      tone(450, 0.20, 'sine', 0.08);
+    }
+
+    function endRun(message = 'Run ended.') {
+      if (!game.playing && message === 'Run ended.') return;
+      game.playing = false;
+      setStatus(message);
+      app.centerMessage.classList.remove('hidden');
+      document.querySelector('#centerMessage .big').textContent = 'RUN COMPLETE';
+      document.querySelector('#centerMessage .small').textContent = `${message} Final score: ${Math.floor(game.score).toLocaleString()} • mode: ${game.mode ? MODE_DEFS[game.mode].name : 'n/a'}`;
+      tone(260, 0.12, 'triangle', 0.12);
+      tone(520, 0.24, 'sine', 0.09);
+      showToast(message, 2400);
+    }
+
+    function updateDesktopDebug(dt) {
+      const fast = (debug.keys.has('ShiftLeft') || debug.keys.has('ShiftRight')) ? 1.6 : 1.0;
+      const targetX = (debug.keys.has('KeyA') ? -0.30 : 0) + (debug.keys.has('KeyD') ? 0.30 : 0);
+      const targetDuck = debug.keys.has('KeyS') ? -0.33 : 0;
+      const targetRise = debug.hang && debug.pullPulseTimer > 0 ? 0.18 : 0;
+      debug.headOffsetX = lerp(debug.headOffsetX, targetX, clamp(10 * dt, 0, 1));
+      debug.headOffsetY = lerp(debug.headOffsetY, targetDuck + targetRise, clamp(12 * dt, 0, 1));
+      debug.pullPulseTimer = Math.max(0, debug.pullPulseTimer - dt * 3.2);
+      player.head.set(calibration.neutralHead.x + debug.headOffsetX, calibration.neutralHead.y + debug.headOffsetY, calibration.neutralHead.z);
+
+      const hangY = calibration.barHeight - 0.02;
+      const idleY = calibration.neutralHead.y - 0.28;
+      const leftBase = new THREE.Vector3(-0.25, debug.hang ? hangY : idleY, debug.hang ? -0.20 : -0.32);
+      const rightBase = new THREE.Vector3(0.25, debug.hang ? hangY : idleY, debug.hang ? -0.20 : -0.32);
+
+      debug.leftPunchTimer = Math.max(0, debug.leftPunchTimer - dt * 6 * fast);
+      debug.rightPunchTimer = Math.max(0, debug.rightPunchTimer - dt * 6 * fast);
+      debug.leftReachTimer = Math.max(0, debug.leftReachTimer - dt * 4 * fast);
+      debug.rightReachTimer = Math.max(0, debug.rightReachTimer - dt * 4 * fast);
+
+      const leftPunchDepth = smoothstep(debug.leftPunchTimer) * -0.48;
+      const rightPunchDepth = smoothstep(debug.rightPunchTimer) * -0.48;
+      const leftReachDepth = smoothstep(debug.leftReachTimer) * -0.68;
+      const rightReachDepth = smoothstep(debug.rightReachTimer) * -0.68;
+
+      player.leftHand.set(leftBase.x, leftBase.y + (debug.leftReachTimer > 0 ? 0.12 : 0), leftBase.z + leftPunchDepth + leftReachDepth);
+      player.rightHand.set(rightBase.x, rightBase.y + (debug.rightReachTimer > 0 ? 0.12 : 0), rightBase.z + rightPunchDepth + rightReachDepth);
+      player.leftGrip = debug.hang;
+      player.rightGrip = debug.hang;
+    }
+
+    const xrControllers = [];
+    for (let i = 0; i < 2; i++) {
+      const controller = renderer.xr.getController(i);
+      controller.userData.handedness = 'unknown';
+      controller.addEventListener('connected', (e) => {
+        controller.userData.inputSource = e.data;
+        controller.userData.handedness = e.data.handedness || 'unknown';
+      });
+      controller.addEventListener('disconnected', () => {
+        controller.userData.inputSource = null;
+        controller.userData.handedness = 'unknown';
+      });
+      scene.add(controller);
+      xrControllers.push(controller);
+    }
+
+    function updateXRInput(dt) {
+      const xrCamera = renderer.xr.getCamera(camera);
+      xrCamera.getWorldPosition(player.head);
+      xrCamera.getWorldQuaternion(tempQuat);
+      player.forward.set(0, 0, -1).applyQuaternion(tempQuat).normalize();
+
+      const leftState = { pos: null, grip: false };
+      const rightState = { pos: null, grip: false };
+
+      for (const controller of xrControllers) {
+        if (!controller.userData.inputSource) continue;
+        controller.getWorldPosition(tempVecA);
+        const handedness = controller.userData.handedness;
+        const gp = controller.userData.inputSource.gamepad;
+        const squeeze = !!(gp && gp.buttons && gp.buttons[1] && (gp.buttons[1].pressed || gp.buttons[1].value > 0.55));
+        if (handedness === 'left') {
+          leftState.pos = tempVecA.clone();
+          leftState.grip = squeeze;
+        } else if (handedness === 'right') {
+          rightState.pos = tempVecA.clone();
+          rightState.grip = squeeze;
+        }
+      }
+
+      if (leftState.pos) player.leftHand.copy(leftState.pos);
+      if (rightState.pos) player.rightHand.copy(rightState.pos);
+      player.leftGrip = leftState.grip;
+      player.rightGrip = rightState.grip;
+    }
+
+    function derivePlayerState(dt) {
+      player.headVel.copy(player.head).sub(player.prevHead).multiplyScalar(1 / Math.max(dt, 1e-5));
+      player.leftVel.copy(player.leftHand).sub(player.prevLeftHand).multiplyScalar(1 / Math.max(dt, 1e-5));
+      player.rightVel.copy(player.rightHand).sub(player.prevRightHand).multiplyScalar(1 / Math.max(dt, 1e-5));
+
+      player.leanX = player.head.x - calibration.neutralHead.x;
+      player.duckAmount = Math.max(0, calibration.neutralHead.y - player.head.y);
+      player.leftReach = player.leftHand.distanceTo(getShoulderPosition(-1));
+      player.rightReach = player.rightHand.distanceTo(getShoulderPosition(1));
+
+      const leftHigh = player.leftHand.y >= calibration.barHeight - 0.14;
+      const rightHigh = player.rightHand.y >= calibration.barHeight - 0.14;
+      const leftNear = Math.abs(player.leftHand.x - (calibration.neutralHead.x - 0.24)) < 0.30;
+      const rightNear = Math.abs(player.rightHand.x - (calibration.neutralHead.x + 0.24)) < 0.30;
+      player.hanging = player.leftGrip && player.rightGrip && leftHigh && rightHigh && leftNear && rightNear;
+
+      const pullByHeight = player.head.y - calibration.neutralHead.y;
+      const pullByVelocity = player.headVel.y * 0.08;
+      player.pullAmount = Math.max(0, pullByHeight + pullByVelocity);
+      if (player.hanging && player.pullAmount > calibration.pullThreshold) {
+        game.recentPull = 0.65;
+      }
+
+      const forwardZ = -0.35;
+      player.leftPunching = player.leftVel.length() > 1.2 && player.leftVel.z < forwardZ;
+      player.rightPunching = player.rightVel.length() > 1.2 && player.rightVel.z < forwardZ;
+
+      player.prevHead.copy(player.head);
+      player.prevLeftHand.copy(player.leftHand);
+      player.prevRightHand.copy(player.rightHand);
+    }
+
+    function updateEntities(dt) {
+      for (const entity of [...game.entities]) {
+        entity.group.position.z += entity.speed * dt;
+        if (entity.kind === 'punch') {
+          const bob = Math.sin(game.time * 8 + entity.group.id) * 0.02;
+          entity.group.rotation.y += dt * 2.2;
+          entity.group.position.y = entity.baseY + bob;
+          const hitByLeft = (entity.side <= 0) && player.leftPunching && player.leftHand.distanceTo(entity.group.position) < entity.radius;
+          const hitByRight = (entity.side >= 0) && player.rightPunching && player.rightHand.distanceTo(entity.group.position) < entity.radius;
+          if (!entity.hit && (hitByLeft || hitByRight)) {
+            entity.hit = true;
+            const handedness = hitByLeft ? 'left' : hitByRight ? 'right' : 'both';
+            scoreSuccess(110, entity.group.position, entity.side < 0 ? palette.magenta : entity.side > 0 ? palette.cyan : palette.orange, handedness, 'Clean strike!');
+            removeEntity(entity);
+            continue;
+          }
+          if (entity.group.position.z > 0.65) {
+            scoreFail(entity.group.position, 'Drone slipped through. Strike earlier.');
+            removeEntity(entity);
+            continue;
+          }
+        } else if (entity.kind === 'reach') {
+          let allHit = true;
+          let anyHolding = false;
+          for (const node of entity.nodes) {
+            if (node.hit) continue;
+            allHit = false;
+            const worldPos = node.node.getWorldPosition(tempVecB);
+            const leftTouch = player.leftHand.distanceTo(worldPos) < entity.radius && player.leftReach > 0.32;
+            const rightTouch = player.rightHand.distanceTo(worldPos) < entity.radius && player.rightReach > 0.32;
+            if (leftTouch || rightTouch) {
+              anyHolding = true;
+              node.hold += dt;
+              node.halo.scale.setScalar(1 + node.hold * 2.0);
+              node.core.material.emissiveIntensity = 1.2;
+              if (node.hold > 0.22) {
+                node.hit = true;
+                scoreSuccess(95, worldPos, node.core.material.color.getHex(), leftTouch ? 'left' : rightTouch ? 'right' : 'both', 'Locked node!');
+              }
+            } else {
+              node.hold = Math.max(0, node.hold - dt * 1.5);
+              node.halo.scale.setScalar(1 + node.hold * 1.4);
+              node.core.material.emissiveIntensity = 0.5;
+            }
+          }
+          if (anyHolding) tone(350 + Math.sin(game.time * 30) * 40, 0.04, 'sine', 0.025);
+          if (allHit) {
+            removeEntity(entity);
+            continue;
+          }
+          if (entity.group.position.z > 0.72) {
+            scoreFail(entity.group.position, 'Reach further into the node.');
+            removeEntity(entity);
+            continue;
+          }
+        } else if (entity.kind === 'hazard') {
+          if (!entity.resolved && entity.group.position.z > -0.15) {
+            entity.resolved = true;
+            if (entity.subtype === 'duck') {
+              if (player.duckAmount > calibration.duckThreshold) scoreSuccess(80, entity.group.position, palette.red, 'both', 'Nice duck!');
+              else scoreFail(entity.group.position, 'Duck lower for beam hazards.');
+            } else if (entity.subtype === 'leanL') {
+              if (player.leanX < -calibration.leanThreshold) scoreSuccess(80, entity.group.position, palette.magenta, 'both', 'Lean left!');
+              else scoreFail(entity.group.position, 'Lean left to pass the gap.');
+            } else if (entity.subtype === 'leanR') {
+              if (player.leanX > calibration.leanThreshold) scoreSuccess(80, entity.group.position, palette.cyan, 'both', 'Lean right!');
+              else scoreFail(entity.group.position, 'Lean right to pass the gap.');
+            } else if (entity.subtype === 'barrier') {
+              if (player.hanging && game.recentPull > 0.02) scoreSuccess(150, entity.group.position, palette.orange, 'both', 'Vaulted barrier!');
+              else scoreFail(entity.group.position, 'Hang and pull upward to clear barriers.');
+            }
+          }
+          if (entity.group.position.z > 1.2) {
+            removeEntity(entity);
+            continue;
+          }
+        }
+      }
+    }
+
+    function updateFX(dt) {
+      for (const f of [...game.fx]) {
+        f.ttl -= dt;
+        if (f.kind === 'burst') {
+          for (const p of f.pieces) {
+            p.position.addScaledVector(p.userData.vel, dt);
+            p.rotation.x += p.userData.spin.x * dt;
+            p.rotation.y += p.userData.spin.y * dt;
+            p.rotation.z += p.userData.spin.z * dt;
+            p.scale.multiplyScalar(0.97);
+            p.material.opacity = clamp(f.ttl / 0.55, 0, 1);
+          }
+        } else if (f.kind === 'wave') {
+          const t = 1 - clamp(f.ttl / 0.42, 0, 1);
+          const s = 1 + t * f.maxScale;
+          f.mesh.scale.setScalar(s);
+          f.mesh.material.opacity = clamp(0.8 * (1 - t), 0, 1);
+        }
+        if (f.ttl <= 0) {
+          if (f.group?.parent) f.group.parent.remove(f.group);
+          if (f.mesh?.parent) f.mesh.parent.remove(f.mesh);
+          const idx = game.fx.indexOf(f);
+          if (idx >= 0) game.fx.splice(idx, 1);
+        }
+      }
+    }
+
+    function updateSpawns() {
+      while (game.nextEventIndex < game.events.length) {
+        const event = game.events[game.nextEventIndex];
+        if (game.time + game.spawnLead < event.time) break;
+        spawnEntity(event.action);
+        game.nextEventIndex += 1;
+      }
+      const upcoming = game.events[game.nextEventIndex];
+      if (upcoming) {
+        const delta = upcoming.time - game.time;
+        if (delta < 0.95) {
+          const map = {
+            pL: 'Punch left!', pR: 'Punch right!', pC: 'Center drone!',
+            rL: 'Reach left!', rR: 'Reach right!', rBoth: 'Both hands!',
+            duck: 'Duck!', leanL: 'Lean left!', leanR: 'Lean right!', barrier: 'Hang + pull!'
+          };
+          game.currentHint = map[upcoming.action] || game.currentHint;
+        }
+      }
+    }
+
+    function updateArena(dt) {
+      const speed = game.playing ? 11.5 * game.intensity * (game.overdrive > 0 ? 1.15 : 1) : 2.5;
+      for (const strip of strips) {
+        strip.position.z += speed * dt;
+        if (strip.position.z > 3) strip.position.z -= 54;
+        const pulse = game.playing ? 0.14 + Math.sin((strip.position.z + game.time * 8) * 0.25) * 0.04 : 0.08;
+        strip.material.opacity = strip.position.x === 0 ? 0.25 + pulse : 0.10 + pulse * 0.7;
+      }
+      const pos = stars.geometry.attributes.position.array;
+      for (let i = 0; i < starCount; i++) {
+        pos[i * 3 + 2] += speed * 0.26 * dt;
+        if (pos[i * 3 + 2] > 5) {
+          pos[i * 3 + 0] = rand(-16, 16);
+          pos[i * 3 + 1] = rand(0.2, 8.5);
+          pos[i * 3 + 2] = rand(-52, -20);
+        }
+      }
+      stars.geometry.attributes.position.needsUpdate = true;
+      const baseFog = new THREE.Color(0x06111b);
+      const over = new THREE.Color(0x140b1b);
+      scene.fog.color.lerpColors(baseFog, over, game.overdrive > 0 ? 0.45 : 0.0);
+      scene.background.lerpColors(new THREE.Color(0x06111b), new THREE.Color(0x0c0f18), game.overdrive > 0 ? 0.4 : 0.0);
+      barGlow.material.opacity = player.hanging ? 0.42 : 0.22 + Math.sin(game.time * 3.2) * 0.04;
+    }
+
+    function updateComfortVignette() {
+      const level = game.comfort === 'off' ? 0 : game.comfort === 'strong' ? 0.38 : 0.22;
+      const movement = clamp(Math.abs(player.headVel.x) * 0.05 + Math.abs(player.headVel.y) * 0.04, 0, 0.22);
+      const targetOpacity = level ? clamp(level + movement, 0, 0.58) : 0;
+      vignetteMesh.material.opacity = lerp(vignetteMesh.material.opacity, targetOpacity, 0.12);
+      tempVecA.copy(player.head).add(tempVecB.copy(player.forward).multiplyScalar(-0.55));
+      vignetteMesh.position.copy(tempVecA);
+      vignetteMesh.quaternion.copy(tempQuat);
+    }
+
+    function updateHUD() {
+      const timeLeft = Math.max(0, game.duration - game.time);
+      const od = game.overdrive > 0 ? `OD ${(game.overdrive).toFixed(1)}s` : `OD ${Math.round(game.overdriveCharge * 100)}%`;
+      drawLabel(hudMain, [
+        game.mode ? MODE_DEFS[game.mode].name.toUpperCase() : 'HANGSTORM VR',
+        `Score ${Math.floor(game.score).toLocaleString()}    Combo ${game.combo}x    Flow ${Math.round(game.flow * 100)}%`,
+        `Health ${Math.round(game.health)}    ${od}    Time ${timeLeft.toFixed(0)}s`
+      ], {
+        bg: game.overdrive > 0 ? 'rgba(25, 8, 22, 0.72)' : 'rgba(6, 10, 18, 0.66)',
+        stroke: game.overdrive > 0 ? 'rgba(255, 79, 216, 0.34)' : 'rgba(60, 243, 255, 0.28)',
+        titleColor: game.overdrive > 0 ? '#ffd7f5' : '#eaf6ff',
+        bodyColor: '#9ac1d9',
+        titleSize: 72,
+        bodySize: 38,
+      });
+      drawLabel(hudHint, [game.currentHint.toUpperCase(), player.hanging ? 'HANG LOCKED' : 'MOVE INTO POSITION'], {
+        bg: game.hitFlash > 0 ? 'rgba(7, 30, 20, 0.72)' : game.failFlash > 0 ? 'rgba(34, 8, 12, 0.78)' : 'rgba(10, 14, 24, 0.62)',
+        stroke: game.hitFlash > 0 ? 'rgba(108,255,152,0.35)' : game.failFlash > 0 ? 'rgba(255,102,127,0.34)' : 'rgba(255,255,255,0.12)',
+        titleColor: game.failFlash > 0 ? '#ffd5db' : game.hitFlash > 0 ? '#ddffe7' : '#ffffff',
+        bodyColor: '#8eb5cf',
+        titleSize: 80,
+        bodySize: 42,
+      });
+
+      tempVecA.copy(player.head).add(tempVecB.copy(player.forward).multiplyScalar(-1.35));
+      tempVecA.y += 0.48;
+      hudMain.mesh.position.copy(tempVecA);
+      hudMain.mesh.quaternion.copy(tempQuat);
+      hudMain.mesh.scale.setScalar(0.60);
+
+      tempVecA.copy(player.head).add(tempVecB.copy(player.forward).multiplyScalar(-1.15));
+      tempVecA.y += 0.18;
+      hudHint.mesh.position.copy(tempVecA);
+      hudHint.mesh.quaternion.copy(tempQuat);
+      hudHint.mesh.scale.setScalar(0.42);
+    }
+
+    function updateVisuals() {
+      leftHandViz.position.copy(player.leftHand);
+      rightHandViz.position.copy(player.rightHand);
+      headMarker.position.copy(player.head);
+      leftHandViz.material.emissiveIntensity = player.leftPunching ? 2.5 : player.leftReach > 0.4 ? 1.5 : 1.0;
+      rightHandViz.material.emissiveIntensity = player.rightPunching ? 2.5 : player.rightReach > 0.4 ? 1.5 : 1.0;
+      updatePlayerRig();
+    }
+
+    function updateGame(dt) {
+      if (!game.playing) return;
+      game.time += dt;
+      game.recentPull = Math.max(0, game.recentPull - dt);
+      game.hitFlash = Math.max(0, game.hitFlash - dt * 2.2);
+      game.failFlash = Math.max(0, game.failFlash - dt * 2.0);
+      game.flow = clamp(game.flow - dt * 0.018, 0, 1);
+      game.overdrive = Math.max(0, game.overdrive - dt);
+      game.overdriveCharge = clamp(game.overdriveCharge - dt * 0.01, 0, 1.1);
+      updateSpawns();
+      updateEntities(dt);
+      if (game.time >= game.duration || game.nextEventIndex >= game.events.length && game.entities.length === 0) {
+        endRun('Track complete.');
+      }
+      if (game.time - game.lastBeatPulse >= game.beatInterval) {
+        game.lastBeatPulse = game.time;
+        tone(game.overdrive > 0 ? 780 : 440, 0.04, 'square', 0.04);
+      }
+      updateUI();
+    }
+
+    function render() {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      if (renderer.xr.isPresenting) {
+        updateXRInput(dt);
+      } else {
+        updateDesktopDebug(dt);
+      }
+      derivePlayerState(dt);
+      updateGame(dt);
+      updateArena(dt);
+      updateFX(dt);
+      updateVisuals();
+      (renderer.xr.isPresenting ? renderer.xr.getCamera(camera) : camera).getWorldQuaternion(tempQuat);
+      updateComfortVignette();
+      updateHUD();
+      renderer.render(scene, camera);
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    window.addEventListener('resize', onResize);
+
+    window.addEventListener('keydown', (e) => {
+      debug.keys.add(e.code);
+      if (e.code === 'KeyH') debug.hang = true;
+      if (e.code === 'Space') {
+        debug.pullPulseTimer = 1.0;
+        e.preventDefault();
+      }
+      if (e.code === 'KeyJ') debug.leftPunchTimer = 1.0;
+      if (e.code === 'KeyL') debug.rightPunchTimer = 1.0;
+      if (e.code === 'KeyU') debug.leftReachTimer = 1.0;
+      if (e.code === 'KeyO') debug.rightReachTimer = 1.0;
+      if (e.code === 'KeyR') recalibrate();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      debug.keys.delete(e.code);
+      if (e.code === 'KeyH') debug.hang = false;
+    });
+
+    app.skyhookBtn.addEventListener('click', async () => {
+      await resumeAudio();
+      startRun('skyhook');
+    });
+    app.reactorBtn.addEventListener('click', async () => {
+      await resumeAudio();
+      startRun('reactor');
+    });
+    app.calibrateBtn.addEventListener('click', async () => {
+      await resumeAudio();
+      recalibrate();
+    });
+    app.pauseBtn.addEventListener('click', () => endRun('Run ended manually.'));
+    app.intensityRange.addEventListener('input', () => {
+      game.intensity = Number(app.intensityRange.value);
+      updateUI();
+    });
+    app.comfortSelect.addEventListener('change', () => {
+      game.comfort = app.comfortSelect.value;
+    });
+
+    renderer.xr.addEventListener('sessionstart', () => {
+      resumeAudio();
+      setStatus('VR session active. Recalibrate under your bar before starting a run.');
+      setTimeout(() => recalibrate(), 200);
+    });
+    renderer.xr.addEventListener('sessionend', () => {
+      setStatus('Exited VR. Desktop preview active.');
+    });
+
+    if (!window.isSecureContext) {
+      setStatus('WebXR needs HTTPS or localhost. Serve this file instead of opening it with file://');
+      showToast('Serve over HTTPS or localhost for VR');
+    }
+
+    recalibrate();
+    updateUI();
+    renderer.setAnimationLoop(render);
+  </script>
+</body>
+</html>

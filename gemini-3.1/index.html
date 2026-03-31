@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>VR Rubber Band Workout - Meta Quest 3</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; margin: 0; overflow: hidden; }
+        .overlay { position: fixed; top: 0; left: 0; padding: 20px; color: white; z-index: 1000; background: rgba(0,0,0,0.5); font-weight: bold; }
+    </style>
+    <script>
+        // --- Web Audio Synth Sound Effects (No external assets required) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'hit_left') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'hit_right') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(660, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'ring') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1760, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0.8, now + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'hazard') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.linearRampToValueAtTime(55, now + 0.3);
+                gain.gain.setValueAtTime(1.0, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'start') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(440, now + 0.2);
+                osc.frequency.setValueAtTime(880, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
+                osc.start(now);
+                osc.stop(now + 0.8);
+            }
+        }
+
+        // --- Custom A-Frame Components ---
+        
+        // GAME MANAGER handles state, score, and UI updates
+        AFRAME.registerComponent('game-manager', {
+            schema: {},
+            init: function () {
+                this.state = 'menu'; // menu, playing, gameover
+                this.score = 0;
+                this.combo = 1;
+                this.health = 3;
+                
+                this.uiPanel = document.getElementById('ui-panel');
+                this.healthText = document.getElementById('ui-health');
+                this.scoreText = document.getElementById('ui-score');
+                
+                this.spawner = document.getElementById('spawner');
+                
+                // Expose globally for other components to access easily
+                window.gameManager = this;
+                this.updateUI("PUNCH CENTER TO START");
+
+                // Keyboard fallback for desktop testing
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && this.state === 'menu') {
+                        this.startGame();
+                    }
+                });
+            },
+
+            startGame: function() {
+                if (this.state === 'playing') return;
+                initAudio();
+                playSound('start');
+                
+                this.state = 'playing';
+                this.score = 0;
+                this.combo = 1;
+                this.health = 3;
+                this.updateUI("GET READY");
+                
+                // Clear existing targets
+                const targets = document.querySelectorAll('.game-object');
+                targets.forEach(t => t.parentNode.removeChild(t));
+
+                // Start Spawner
+                this.spawner.components['spawner'].startSpawning();
+            },
+
+            endGame: function() {
+                this.state = 'gameover';
+                playSound('hazard');
+                this.spawner.components['spawner'].stopSpawning();
+                this.updateUI(`GAME OVER\nSCORE: ${this.score}\nPUNCH CENTER TO RESTART`);
+                
+                // Cleanup after a short delay
+                setTimeout(() => {
+                    this.state = 'menu';
+                }, 2000);
+            },
+
+            addScore: function(amount, isRing) {
+                if (this.state !== 'playing') return;
+                let finalAmount = amount * this.combo;
+                this.score += finalAmount;
+                if (!isRing) {
+                    this.combo = Math.min(this.combo + 1, 8); // Max combo 8x
+                } else {
+                    this.combo += 2; // Pull-ups give huge combo boost
+                }
+                this.updateUI();
+            },
+
+            takeDamage: function(amount) {
+                if (this.state !== 'playing') return;
+                this.combo = 1;
+                this.health -= amount;
+                playSound('hazard');
+                this.updateUI();
+                
+                // Flash the screen red
+                const overlay = document.getElementById('damage-overlay');
+                if (overlay) {
+                    overlay.setAttribute('opacity', 0.5);
+                    setTimeout(() => overlay.setAttribute('opacity', 0), 200);
+                }
+
+                if (this.health <= 0) {
+                    this.endGame();
+                }
+            },
+
+            updateUI: function(customMsg) {
+                let healthStr = "X".repeat(Math.max(0, this.health));
+                if (this.healthText) this.healthText.setAttribute('value', `HEALTH: ${healthStr}`);
+                
+                if (customMsg) {
+                    if (this.scoreText) this.scoreText.setAttribute('value', customMsg);
+                } else {
+                    let text = `SCORE: ${this.score}\nCOMBO: x${this.combo}`;
+                    if (this.scoreText) this.scoreText.setAttribute('value', text);
+                }
+            }
+        });
+
+        // SPAWNER creates obstacles and targets rhythmically
+        AFRAME.registerComponent('spawner', {
+            schema: {
+                interval: {type: 'number', default: 1200}, // ms between spawns
+                baseSpeed: {type: 'number', default: 10} // m/s
+            },
+            init: function() {
+                this.timer = null;
+                this.patterns = ['left', 'right', 'dual', 'duck', 'pullup', 'wide_reach'];
+                this.beatCount = 0;
+            },
+            startSpawning: function() {
+                this.beatCount = 0;
+                this.spawnPattern();
+            },
+            stopSpawning: function() {
+                if (this.timer) clearTimeout(this.timer);
+            },
+            spawnPattern: function() {
+                if (window.gameManager.state !== 'playing') return;
+
+                // Gradually increase speed
+                let currentSpeed = this.data.baseSpeed + (this.beatCount * 0.15);
+                currentSpeed = Math.min(currentSpeed, 35); // Hardcap speed
+                
+                // Pick a pattern
+                let pattern;
+                if (this.beatCount > 0 && this.beatCount % 5 === 0) pattern = 'pullup';
+                else if (this.beatCount > 0 && this.beatCount % 7 === 0) pattern = 'duck';
+                else pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+
+                // Standard Z start
+                let startZ = -30;
+
+                switch(pattern) {
+                    case 'left':
+                        this.createOrb('left', -0.5, 1.3, startZ, currentSpeed);
+                        break;
+                    case 'right':
+                        this.createOrb('right', 0.5, 1.3, startZ, currentSpeed);
+                        break;
+                    case 'dual':
+                        this.createOrb('left', -0.5, 1.2, startZ, currentSpeed);
+                        this.createOrb('right', 0.5, 1.4, startZ, currentSpeed);
+                        break;
+                    case 'wide_reach':
+                        this.createOrb('left', -1.0, 1.2, startZ, currentSpeed);
+                        this.createOrb('right', 1.0, 1.2, startZ, currentSpeed);
+                        break;
+                    case 'duck':
+                        this.createHazard('duck', startZ, currentSpeed);
+                        break;
+                    case 'pullup':
+                        this.createRing(startZ, currentSpeed);
+                        break;
+                }
+
+                this.beatCount++;
+
+                // Slightly randomize next interval for rhythmic feel, decrease over time
+                let nextInterval = this.data.interval - (this.beatCount * 10);
+                nextInterval = Math.max(nextInterval, 400); // hard cap fastest spawn rate
+                
+                this.timer = setTimeout(() => this.spawnPattern(), nextInterval);
+            },
+            
+            createOrb: function(hand, x, y, z, speed) {
+                let el = document.createElement('a-entity');
+                let color = hand === 'left' ? '#ff0055' : '#00aaff';
+                el.setAttribute('geometry', 'primitive: sphere; radius: 0.2');
+                el.setAttribute('material', `color: ${color}; emission: ${color}; emissiveIntensity: 2; transparent: true; opacity: 0.9; wireframe: false`);
+                el.setAttribute('position', {x: x, y: y, z: z});
+                el.setAttribute('class', 'punch-target game-object');
+                el.dataset.hand = hand;
+                el.setAttribute('mover', `speed: ${speed}`);
+                this.el.sceneEl.appendChild(el);
+            },
+
+            createHazard: function(type, z, speed) {
+                let el = document.createElement('a-entity');
+                el.setAttribute('geometry', 'primitive: box; width: 6; height: 0.2; depth: 0.4');
+                el.setAttribute('material', `color: #ff0000; emission: #ff0000; emissiveIntensity: 3`);
+                el.setAttribute('position', {x: 0, y: 1.4, z: z}); // Must duck
+                el.setAttribute('class', 'duck-laser game-object');
+                el.setAttribute('mover', `speed: ${speed}`);
+                // Add warning sign
+                let sign = document.createElement('a-text');
+                sign.setAttribute('value', 'DUCK!');
+                sign.setAttribute('align', 'center');
+                sign.setAttribute('position', '0 0.5 0');
+                sign.setAttribute('color', '#fff');
+                el.appendChild(sign);
+                this.el.sceneEl.appendChild(el);
+            },
+
+            createRing: function(z, speed) {
+                let el = document.createElement('a-entity');
+                el.setAttribute('geometry', 'primitive: torus; radius: 0.4; radiusTubular: 0.05');
+                el.setAttribute('material', `color: #ffd700; emission: #ffd700; emissiveIntensity: 3`);
+                el.setAttribute('position', {x: 0, y: 2.3, z: z}); // Must reach high
+                el.setAttribute('class', 'pullup-ring game-object');
+                el.setAttribute('mover', `speed: ${speed}`);
+                
+                // Add an arrow pointing up inside it to indicate pull up
+                let arrow = document.createElement('a-entity');
+                arrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.15');
+                arrow.setAttribute('material', 'color: #fff; emission: #fff; emissiveIntensity: 1; transparent: true; opacity: 0.5');
+                arrow.setAttribute('position', '0 0.1 0');
+                el.appendChild(arrow);
+
+                let sign = document.createElement('a-text');
+                sign.setAttribute('value', 'HANG!');
+                sign.setAttribute('align', 'center');
+                sign.setAttribute('position', '0 0.7 0');
+                sign.setAttribute('color', '#ffd700');
+                el.appendChild(sign);
+                
+                this.el.sceneEl.appendChild(el);
+            }
+        });
+
+        // MOVER drives the objects forward on the Z axis
+        AFRAME.registerComponent('mover', {
+            schema: { speed: {type: 'number', default: 10} },
+            tick: function(time, timeDelta) {
+                if (window.gameManager.state !== 'playing') return;
+                
+                let dt = timeDelta / 1000;
+                let pos = this.el.object3D.position;
+                pos.z += this.data.speed * dt;
+
+                // Check missed
+                if (!this.el.dataset.hit && pos.z > 2) {
+                    if (this.el.classList.contains('punch-target')) {
+                        // missed positive target drops combo
+                        gameManager.combo = 1;
+                        gameManager.updateUI();
+                    } else if (this.el.classList.contains('pullup-ring')) {
+                         // Missing a ring drops combo
+                         gameManager.combo = 1; 
+                         gameManager.updateUI();
+                    }
+                    this.el.parentNode.removeChild(this.el);
+                }
+            }
+        });
+
+        // COLLIDER logic: We use a global tick on rig instead of components on hands, 
+        // to simplify catching both VR hands and mouse/head tests.
+        AFRAME.registerComponent('player-collider', {
+            tick: function() {
+                if (!window.gameManager) return;
+
+                let leftHandEl = document.getElementById('left-hand');
+                let rightHandEl = document.getElementById('right-hand');
+                let headEl = document.getElementById('head');
+
+                let leftPos = new THREE.Vector3();
+                let rightPos = new THREE.Vector3();
+                let headPos = new THREE.Vector3();
+
+                if (leftHandEl) leftHandEl.object3D.getWorldPosition(leftPos);
+                if (rightHandEl) rightHandEl.object3D.getWorldPosition(rightPos);
+                if (headEl) headEl.object3D.getWorldPosition(headPos);
+
+                // Menu Start mechanic (punching the center UI zone)
+                if (window.gameManager.state === 'menu' || window.gameManager.state === 'gameover') {
+                    // Assume start UI box is at (0, 1.3, -2.4)
+                    let startPos = new THREE.Vector3(0, 1.5, -2.4);
+                    if (leftPos.distanceTo(startPos) < 0.6 || rightPos.distanceTo(startPos) < 0.6) {
+                        if (window.gameManager.state === 'menu') window.gameManager.startGame();
+                    }
+                    return; // Skip game collisions if not playing
+                }
+
+                if (window.gameManager.state !== 'playing') return;
+
+                // Check objects
+                const objects = document.querySelectorAll('.game-object');
+                for (let i = 0; i < objects.length; i++) {
+                    let obj = objects[i];
+                    if (obj.dataset.hit) continue;
+
+                    let objPos = new THREE.Vector3();
+                    obj.object3D.getWorldPosition(objPos);
+
+                    if (obj.classList.contains('punch-target')) {
+                        // Check distance to hands
+                        let distL = leftPos.distanceTo(objPos);
+                        let distR = rightPos.distanceTo(objPos);
+
+                        if (distL < 0.35 || distR < 0.35) {
+                            let hittingHand = distL < distR ? 'left' : 'right';
+                            if (obj.dataset.hand !== hittingHand) {
+                                gameManager.combo = 1; // Wrong hand
+                                playSound('hazard');
+                            } else {
+                                gameManager.addScore(10, false);
+                                playSound('hit_' + hittingHand);
+                                // Visual effect
+                                obj.setAttribute('scale', '1.5 1.5 1.5');
+                                obj.setAttribute('material', 'opacity: 0.2');
+                            }
+                            obj.dataset.hit = "true";
+                            setTimeout(() => { if (obj.parentNode) obj.parentNode.removeChild(obj); }, 100);
+                        }
+                    } else if (obj.classList.contains('duck-laser')) {
+                        // Check head pos
+                        if (Math.abs(headPos.z - objPos.z) < 0.3) {
+                            if (headPos.y > objPos.y - 0.1) { // Player is too high, got hit!
+                                gameManager.takeDamage(1);
+                                obj.dataset.hit = "true";
+                                obj.setAttribute('material', 'color: #fff');
+                            }
+                        }
+                    } else if (obj.classList.contains('pullup-ring')) {
+                        // Check head pos against ring
+                        if (headPos.distanceTo(objPos) < 0.5) {
+                            gameManager.addScore(50, true);
+                            playSound('ring');
+                            obj.dataset.hit = "true";
+                            obj.setAttribute('scale', '1.5 1.5 1.5');
+                            obj.setAttribute('material', 'opacity: 0.1; color: #fff');
+                            setTimeout(() => { if (obj.parentNode) obj.parentNode.removeChild(obj); }, 150);
+                        }
+                    }
+                }
+            }
+        });
+
+        // GROUND SCROLL to simulate running speed
+        AFRAME.registerComponent('ground-mover', {
+            tick: function(time, timeDelta) {
+                if (window.gameManager.state !== 'playing') return;
+                // Move ground geometry to local start
+                let el = this.el;
+                let currentZ = el.getAttribute('position').z;
+                currentZ += (20 * timeDelta / 1000); // 20 units per sec
+                if (currentZ > 10) currentZ = 0; // Wrap around for illusion
+                el.setAttribute('position', {x: 0, y: 0, z: currentZ});
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="overlay">
+        VR RUBBER BAND WORKOUT<br>
+        <small>Put on your headset, enter VR, and punch the center box to start.</small>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene xr-mode-ui="XRMode: xr" renderer="antialias: true; foveationLevel: 1;">
+        
+        <a-entity game-manager></a-entity>
+        <a-entity id="spawner" spawner></a-entity>
+
+        <a-entity id="rig" player-collider position="0 0 0">
+            <!-- Camera (Head) -->
+            <a-camera id="head" position="0 1.6 0" look-controls="pointerLockEnabled: false">
+                <!-- Red flash overlay for damage -->
+                <a-plane id="damage-overlay" color="red" width="10" height="10" position="0 0 -0.5" material="transparent: true; opacity: 0; shader: flat" side="double"></a-plane>
+            </a-camera>
+
+            <!-- Left Hand/Controller -->
+            <!-- Use controllers + hand-tracking support seamlessly -->
+            <a-entity id="left-hand" oculus-touch-controls="hand: left" hand-tracking-controls="hand: left">
+                <a-sphere color="#ff0055" radius="0.08" material="emission: #ff0055; emissiveIntensity: 1;"></a-sphere>
+            </a-entity>
+
+            <!-- Right Hand/Controller -->
+            <a-entity id="right-hand" oculus-touch-controls="hand: right" hand-tracking-controls="hand: right">
+                <a-sphere color="#00aaff" radius="0.08" material="emission: #00aaff; emissiveIntensity: 1;"></a-sphere>
+            </a-entity>
+        </a-entity>
+
+        <!-- UI Panel for Start / Score -->
+        <a-entity id="ui-panel" position="0 1.5 -2.5">
+            <a-text id="ui-score" value="LOADING..." align="center" width="6" color="#0ff" position="0 0.5 0" wrap-count="30"></a-text>
+            <a-text id="ui-health" value="" align="center" width="4" color="#f00" position="0 -0.5 0"></a-text>
+            <a-box id="start-box" opacity="0.3" color="#fff" width="0.8" height="0.8" depth="0.1" position="0 0 -0.1" material="emission: #fff; emissiveIntensity: 0.2">
+                 <a-text value="PUNCH BOX" align="center" position="0 0.2 0.06" color="#000"></a-text>
+            </a-box>
+        </a-entity>
+
+        <!-- Virtual Environment (Synthwave) -->
+        <a-sky color="#05010a"></a-sky>
+
+        <!-- Distant Sun -->
+        <a-circle position="0 5 -50" radius="10" color="#ff00ff" material="shader: flat; opacity: 0.9"></a-circle>
+        
+        <!-- Moving Floor Grid Wrapper to duplicate loop smoothly -->
+        <a-entity ground-mover>
+            <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="100" color="#0a0515" material="shader: flat; wireframe: true; wireframe-linewidth: 2; color: #e600e6"></a-plane>
+            <a-plane position="0 0 -100" rotation="-90 0 0" width="50" height="100" color="#0a0515" material="shader: flat; wireframe: true; wireframe-linewidth: 2; color: #e600e6"></a-plane>
+        </a-entity>
+
+        <!-- Lights -->
+        <a-light type="ambient" color="#222"></a-light>
+        <a-light type="point" color="#ff00ff" position="0 4 -5" intensity="1.5" distance="50"></a-light>
+        <a-light type="point" color="#00ffff" position="0 4 -15" intensity="1.0" distance="50"></a-light>
+
+    </a-scene>
+
+</body>
+</html>
